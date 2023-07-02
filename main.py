@@ -1,7 +1,7 @@
 '''
 Description: 
 Date: 2023-03-11 10:54:26
-LastEditTime: 2023-03-11 16:04:15
+LastEditTime: 2023-03-11 23:34:14
 '''
 import torch
 
@@ -51,12 +51,12 @@ loaders = {
     'std':      transforms.Compose(
                     [transforms.Resize(imsize),
                     #  transforms.RandomResizedCrop(512),
-                     transforms.CenterCrop(1024),
+                     transforms.CenterCrop(512),
                      transforms.ToTensor(),
                      transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]),
     'no_norm':  transforms.Compose(
                     [transforms.Resize(imsize),
-                     transforms.CenterCrop(1024),
+                     transforms.CenterCrop(512),
                     #  transforms.RandomResizedCrop(512),
                      transforms.ToTensor()])
 }

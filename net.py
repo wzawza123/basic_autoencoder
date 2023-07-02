@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
 
+from pygini import gini
+
 from transformations import *
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -34,31 +36,56 @@ class Autoencoder(nn.Module):
         self.lambda_2 = lambda_2
         self.lambda_tv = lambda_tv
 
+        self.iter=0
+
     def forward(self, input):
         # encode input
         input_encoded = self.encoder(input)['r41']
 
-        fig=plt.figure(figsize=(8, 4))
-        grid = ImageGrid(fig, 111,
-                            nrows_ncols=(1, 3),
-                            axes_pad=0.1,
-                            share_all=True,
-                            cbar_location="right",
-                            cbar_mode="single",
-                            cbar_size="7%",
-                            cbar_pad=0.15
-                        )   
+
+        # # get the amplitude and phase of the input
+        input_amplitude, input_phase = fft_magnitude_phase(input_encoded)
+
+        # save the amplitude and phase of the input to file
+        np.save("./npy/input_amplitude_{}.npy".format(self.iter), input_amplitude.cpu().detach().numpy())
+        np.save("./npy/input_phase_{}.npy".format(self.iter), input_phase.cpu().detach().numpy())
+
+        self.iter+=1
+
+        # load the amplitude and phase of the input from file
+        # other_amplitude = torch.from_numpy(np.load("./npy/input_amplitude.npy")).to(device)
+
+        #print("input_amplitude shape: {}".format(input_amplitude.shape))
+        # print("input_phase shape: {}".format(input_phase.shape))
+
+        # input_amplitude, input_phase = fft_magnitude_phase(input_encoded)
+        # use ifft to reconstruct the input
+        # input_encoded = fft_magnitude_phase_reconstruction(other_amplitude, input_phase)
+
+
+
+
+        # fig=plt.figure(figsize=(8, 4))
+        # grid = ImageGrid(fig, 111,
+        #                     nrows_ncols=(1, 5),
+        #                     axes_pad=0.1,
+        #                     share_all=True,
+        #                     cbar_location="right",
+        #                     cbar_mode="single",
+        #                     cbar_size="7%",
+        #                     cbar_pad=0.15
+        #                 )   
 
         # vivsuallize the feature map
-        visualize_data = input_encoded[0]
-        visualize_data = visualize_data.cpu().detach().numpy()
-        visualize_data = np.transpose(visualize_data, (1, 2, 0))
-        # only show the first channel
-        for i in range(0,1):
-            visualize_data2 = visualize_data[:, :, i]
-            # set up the subplot title
-            grid[0].set_title("original")
-            grid[0].imshow(visualize_data2)
+        # visualize_data = input_encoded[0]
+        # visualize_data = visualize_data.cpu().detach().numpy()
+        # visualize_data = np.transpose(visualize_data, (1, 2, 0))
+        # # only show the first channel
+        # for i in range(0,1):
+        #     visualize_data = visualize_data[:, :, i]
+        #     # set up the subplot title
+        #     grid[0].set_title("original")
+        #     grid[0].imshow(visualize_data)
 
 
 
@@ -71,34 +98,97 @@ class Autoencoder(nn.Module):
 
         # input_encoded = ratio_and_bias_transformation(input_encoded)
 
-        input_encoded,ll = wavelet_transformation(input_encoded)
+        # input_encoded,ll = wavelet_transformation(input_encoded)
 
-        # visualize the feature map
-        visualize_data = input_encoded[0]
-        # vivsuallize the feature map
-        visualize_data = input_encoded[0]
-        visualize_data = visualize_data.cpu().detach().numpy()
-        visualize_data = np.transpose(visualize_data, (1, 2, 0))
-        # only show the first channel
-        for i in range(0,1):
-            visualize_data2 = visualize_data[:, :, i]
-            # set up the subplot title
-            grid[1].set_title("Without LL")
-            grid[1].imshow(visualize_data2)
+        # print(input_encoded.shape)
 
-        # set up the subplot title
-        grid[2].set_title("LL only")
-        grid[2].imshow(ll[0][0])
+        # input_encoded_l,input_encoded_h = fft_freq_filter_trasformation(input_encoded)
+        # input_encoded=input_encoded_h
+
+        # print(input_encoded.shape)
+
+        # for i in range(0,1):
+        #     visualize_data2 = input_encoded_l[0][i]
+        #     # set up the subplot title
+        #     grid[1].set_title("low")
+        #     grid[1].imshow(visualize_data2)
+
+        # for i in range(0,1):
+        #     visualize_data3 = input_encoded_h[0][i]
+        #     # set up the subplot title
+        #     grid[2].set_title("high")
+        #     grid[2].imshow(visualize_data3)
+
+
+        # set up the colorbar
+        # grid.cbar_axes[0].colorbar(grid[0].images[0])
+        # plt.show()
+
+        # calculate the variance of each channel
+        # variance = torch.var(input_encoded, dim=(2, 3))
+        # # sort the variance
+        # variance, index = torch.sort(variance, dim=1, descending=True)
+        # # show the distribution of the variance
+        # plt.plot(variance[0])
+        # plt.show()
+
+        # # get 5 channels evenly distributed
+        # index = index[:, ::int(variance.shape[1] / 5)]
         
-        # set up the color bar
-        grid.cbar_axes[0].colorbar(grid[0].images[0])
-        # show the figure
-        plt.show()
+        # # visualize the corresponding feature map
+        # for i in range(0,5):
+        #     visualize_data = input_encoded[0][index[0][i]]
+        #     # set the title of the subplot as the variance of the corresponding channel with 4 decimal place
+        #     grid[i].set_title("variance: {:.4f}".format(variance[0][i]))
+        #     grid[i].imshow(visualize_data)
+        
+        # set up the colorbar
+        # grid.cbar_axes[0].colorbar(grid[0].images[0])
+        # plt.show()
 
-        print(input_encoded.shape)
+
 
         # get output
-        output = self.decoder(input_encoded)
+
+        # visualize the feature map using matplotlib
+
+        # set up color bar
+        # print("amp:",input_amplitude[0][0])
+
+
+        # calculate the gini index
+        # plt.subplot(1, 3, 1)
+        # plt.title("channel")
+        # plt.imshow(input_encoded[0][0].cpu().detach().numpy())
+        # # show the mag and phase of the input
+        # plt.subplot(1, 3, 2)
+        # plt.title("amplitude")
+        # plt.imshow(input_amplitude[0][0].cpu().detach().numpy())
+        # # plt.colorbar()
+        # plt.subplot(1, 3, 3)
+        # plt.title("phase")
+        # plt.imshow(input_phase[0][0].cpu().detach().numpy())
+        
+        # plt.show()
+
+        # # calculate the gini index of the channle value:
+        # gini_index = gini(input_encoded[0][0].flatten().cpu().detach().numpy())
+        # print("channel gini:",gini_index)
+        # # calculate the gini index of the amplitude value:
+        # gini_index = gini(input_amplitude[0][0].flatten().cpu().detach().numpy())
+        # print("amplitude gini:",gini_index)
+        # # calculate the gini index of the phase value:
+        # gini_index = gini(input_phase[0][0].flatten().cpu().detach().numpy())
+        # print("phase gini:",gini_index)
+        # exit()
+
+
+
+
+        output2 = self.decoder(input_encoded)
+        
+        output = input-output2
+
         
 
         # encode output
@@ -107,7 +197,7 @@ class Autoencoder(nn.Module):
         # MSELoss(self, input, target) => input_features are the target
         loss, feature_loss, per_pixel_loss = self.calculate_loss(output, input, output_encoded, input_encoded)
 
-        return output, loss, feature_loss, per_pixel_loss
+        return output2, loss, feature_loss, per_pixel_loss
 
     
 

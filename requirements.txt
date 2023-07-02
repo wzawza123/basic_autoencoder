@@ -2,6 +2,5 @@ torch
 torchvision
 pillow
 pandas
-yaml
 tensorboardX
 pytz

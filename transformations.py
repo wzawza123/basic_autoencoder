@@ -1,12 +1,14 @@
 '''
 Description: 
 Date: 2023-03-11 15:51:22
-LastEditTime: 2023-03-11 23:15:46
+LastEditTime: 2023-05-04 22:01:11
 '''
 import torch
 import torch.nn as nn
 import numpy as np
 import cv2
+import torch.nn.functional as F
+
 
 def get_wav(in_channels, pool=True):
     """wavelet decomposition using conv2d"""
@@ -86,10 +88,10 @@ def wavelet_transformation(input):
         # test the function of the inverse wavelet transform
         LL, LH, HL, HH = get_wav(512, pool=False)
         # ignore the ll part
-        x_after = LH(x_LH) + HL(x_HL) + HH(x_HH)
+        # x_after = LH(x_LH) + HL(x_HL) + HH(x_HH)
 
         # ignore the hh
-        # x_after = LL(x_LL) + LH(x_LH) + HL(x_HL)
+        x_after = LL(x_LL) + LH(x_LH) + HL(x_HL)
 
         # ll only
         # x_after = LL(x_LL)
@@ -126,5 +128,72 @@ def calc_gussian(x,k):
 
 def gaussian_transformation(input):
     # gaussian blur
-    high,low = calc_gussian(input, k=21)
-    return high
+    high,low = calc_gussian(input, k=7)
+    return low,high
+
+
+def fft_magnitude_phase(tensor):
+    # 首先将张量从NCHW格式转换为CNHW格式
+    # tensor = tensor.permute(1, 0, 2, 3)
+    # 进行FFT变换
+    fft_tensor = torch.fft.fft2(tensor, dim=(-2, -1))
+    # 计算幅值和相位
+    magnitude = torch.abs(fft_tensor)
+    phase = torch.angle(fft_tensor)
+    return magnitude, phase
+
+def fft_freq_filter_trasformation(input):
+    # use fft to filter the image with different frequency
+    # fft
+    magnitude, phase = fft_magnitude_phase(input)
+    # mask
+    mask = torch.ones_like(magnitude)
+    mask_threshold = 10
+    mask[:, :, 0:mask_threshold, 0:mask_threshold] = 0
+    mask[:, :, 0:mask_threshold, -mask_threshold:] = 0
+    mask[:, :, -mask_threshold:, 0:mask_threshold] = 0  
+    mask[:, :, -mask_threshold:, -mask_threshold:] = 0
+    
+    # use the mask to filter the image
+    magnitude_high = magnitude * mask
+    magnitude_low = magnitude * (1 - mask)
+
+    # inverse fft
+    high_freq = magnitude_high * torch.exp(1j * phase)
+    low_freq = magnitude_low * torch.exp(1j * phase)
+
+    # reconstruct the image
+    high_freq = torch.fft.ifft2(high_freq, dim=(-2, -1))
+    low_freq = torch.fft.ifft2(low_freq, dim=(-2, -1))
+
+    # to real
+    high_freq = torch.real(high_freq)
+    low_freq = torch.real(low_freq)
+
+    return low_freq,high_freq
+
+
+def fft_magnitude_phase(signal):
+    fft_x = torch.fft.fftn(signal, dim=(-2, -1))
+    # 首先将张量从NCHW格式转换为CNHW格式
+    # tensor = tensor.permute(1, 0, 2, 3)
+    # 计算幅值和相位
+    magnitude = torch.abs(fft_x)
+    phase = torch.angle(fft_x)
+    # 将幅值和相位连接在一起
+    # fft_features = torch.cat((magnitude, phase), dim=1)
+    # 将张量从CNHW格式转换回NCHW格式
+    # fft_features = fft_features.permute(1, 0, 2, 3)
+    # return fft_features
+
+    return magnitude, phase
+
+def fft_magnitude_phase_reconstruction(input_amplitude, input_phase):
+    # use the amplitude and phase to reconstruct the image
+    # inverse fft
+    signal = input_amplitude * torch.exp(1j * input_phase)
+    # reconstruct the image
+    signal = torch.fft.ifft2(signal, dim=(-2, -1))
+    # to real
+    signal = torch.real(signal)
+    return signal
